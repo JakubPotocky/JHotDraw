@@ -34,11 +34,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTOR: ${{ github.actor }}
-    - name: Build jhotdraw-samples-misc with Maven
-      run: mvn -B package --file jhotdraw-samples/jhotdraw-samples-misc/pom.xml
-    - name: Run tests for jhotdraw-samples-misc
-      run: mvn test --file jhotdraw-samples/jhotdraw-samples-misc/pom.xml
-    - name: Run Main class with Maven Exec
-      run: mvn exec:java -Dexec.mainClass=org.jhotdraw.samples.draw.Main --file jhotdraw-samples/jhotdraw-samples-misc/pom.xml
+    - name: Build entire project with Maven
+      run: mvn -B clean install --file pom.xml
+    - name: Run tests
+      run: mvn test --file pom.xml
+    - name: Run jhotdraw-samples-misc application
+      run: mvn exec:java -Dexec.mainClass=org.jhotdraw.samples.draw.Main -pl jhotdraw-samples/jhotdraw-samples-misc
     - name: Update dependency graph
       uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
