@@ -19,7 +19,17 @@ jobs:
         cache: maven
     - name: Configure GitHub Packages credentials
       run: |
-        echo "<settings>\n  <servers>\n    <server>\n      <id>github</id>\n      <username>${GITHUB_ACTOR}</username>\n      <password>${GITHUB_TOKEN}</password>\n    </server>\n  </servers>\n</settings>" > $GITHUB_WORKSPACE/.maven-settings.xml
+        cat <<EOF > $GITHUB_WORKSPACE/.maven-settings.xml
+        <settings>
+          <servers>
+            <server>
+              <id>github</id>
+              <username>${GITHUB_ACTOR}</username>
+              <password>${GITHUB_TOKEN}</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTOR: ${{ github.actor }}
