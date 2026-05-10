@@ -17,6 +17,12 @@ jobs:
         java-version: '23'
         distribution: 'temurin'
         cache: maven
+    - name: Configure GitHub Packages credentials
+      run: |
+        echo "<settings>\n  <servers>\n    <server>\n      <id>github</id>\n      <username>${GITHUB_ACTOR}</username>\n      <password>${GITHUB_TOKEN}</password>\n    </server>\n  </servers>\n</settings>" > $GITHUB_WORKSPACE/.maven-settings.xml
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_ACTOR: ${{ github.actor }}
     - name: Build with Maven
       run: mvn -B package --settings .maven-settings.xml --file pom.xml
     - name: Run tests with Maven
