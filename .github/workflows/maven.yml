@@ -25,13 +25,13 @@ jobs:
             <server>
               <id>github</id>
               <username>${GITHUB_ACTOR}</username>
-              <password>${GITHUB_TOKEN}</password>
+              <password>${GH_PACKAGES_TOKEN}</password>
             </server>
           </servers>
         </settings>
         EOF
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         GITHUB_ACTOR: ${{ github.actor }}
     - name: Build with Maven
       run: mvn -B package --settings .maven-settings.xml --file pom.xml
