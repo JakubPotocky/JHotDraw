@@ -20,7 +20,7 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --settings .maven-settings.xml --file pom.xml
     - name: Run tests with Maven
-  run: mvn test --settings .maven-settings.xml --file pom.xml
+      run: mvn test --settings .maven-settings.xml --file pom.xml
     - name: Run Main class with Maven Exec
       run: mvn exec:java -Dexec.mainClass=org.jhotdraw.samples.svg.Main --file jhotdraw-samples/jhotdraw-samples-misc/pom.xml
     - name: Update dependency graph
