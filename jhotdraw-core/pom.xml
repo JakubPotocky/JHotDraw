@@ -40,15 +40,28 @@
 		<version>4.11.0</version>
 		<scope>test</scope>
 	</dependency>
-	<dependency>			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>6.8.21</version>
-			<scope>test</scope>
-		</dependency>
-	 <dependency>
-	  <groupId>${project.groupId}</groupId>
-	  <artifactId>jhotdraw-actions</artifactId>
-	  <version>${project.version}</version>
-	 </dependency>
+	<dependency>
+		<groupId>org.testng</groupId>
+		<artifactId>testng</artifactId>
+		<version>6.8.21</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>org.assertj</groupId>
+		<artifactId>assertj-core</artifactId>
+		<version>3.24.1</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>org.assertj</groupId>
+		<artifactId>assertj-swing</artifactId>
+		<version>3.17.1</version>
+		<scope>test</scope>
+	</dependency>
+	<dependency>
+		<groupId>${project.groupId}</groupId>
+		<artifactId>jhotdraw-actions</artifactId>
+		<version>${project.version}</version>
+	</dependency>
 	</dependencies>
 </project>
