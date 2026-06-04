@@ -285,3 +285,40 @@ the actions for the upcoming change request (status-bar selection counter):
 once the dispatch logic lives in a single place, any cross-cutting addition —
 logging, telemetry, status updates — can be applied to *both* `SelectAll` and
 `ClearSelection` by editing one method instead of two.
+
+
+---
+
+## 6. SonarLint findings (Option A)
+
+After installing SonarLint v5.3.0 and opening the five target files, SonarLint reported the rules below in the **Problems** panel. Each row maps the rule ID to the matching [Ker05] Chapter 4 smell and to the action I took.
+
+| File | Rule | [Ker05] smell | Fix |
+|---|---|---|---|
+| `AbstractSelectionAction` | `java:S1604` Anonymous inner class can be a lambda | Long Method / scaffolding noise | Replaced the 11-line anonymous `PropertyChangeListener` with a 6-line lambda. |
+| `AbstractSelectionAction` | `java:S5993` Abstract class has a public constructor | Inappropriate intimacy / API hygiene | Changed `public AbstractSelectionAction(...)` to `protected`. |
+| `AbstractSelectionAction` | `java:S1948` Non-`Serializable` field in a `Serializable` class | (no [Ker05] match — pure correctness) | Marked `target` and `propertyHandler` as `transient`. |
+| `AbstractSelectionAction` | `java:S1871` Two branches in a conditional have the same implementation | Duplicated Code | Collapsed `if ... else if ...` into a single `if (... \|\| ...)` inside the lambda. |
+| `AbstractSelectedAction` | `java:S1124` Modifier order does not follow JLS | Code style / readability | `transient private DrawingView` › `private transient DrawingView`. |
+| `AbstractSelectedAction` | `java:S1116` Empty statement | Speculative Generality | Removed stray `;` after the inner `EventHandler` class definition. |
+| `AbstractSelectedAction` | `java:S125`  Commented-out code | Comments-as-Deodorant (Ch. 4) | Removed `//updateEnabledState();` from the constructor. |
+| `AbstractSelectedAction` | `java:S5993` Abstract class has a public constructor | API hygiene | Changed `public AbstractSelectedAction(DrawingEditor)` to `protected`. |
+| `AbstractSelectedAction` | `java:S1948` Non-`Serializable` field in a `Serializable` class | correctness | Made `editor` `transient` (in addition to `activeView` which was already transient). |
+| `SelectAllAction` / `ClearSelectionAction` | `java:S1128` Unused / wildcard imports | Comments-as-Deodorant (dead noise) | Replaced `import java.awt.event.*; import javax.swing.*; import javax.swing.text.*; import org.jhotdraw.util.*;` with explicit single-type imports. |
+
+### Why these findings are consistent with my main refactoring
+
+The biggest finding (`java:S1871` Duplicated branches) is exactly the same family of smell as the **Duplicated Code** I addressed with *Form Template Method* in section 4 above — SonarLint independently confirmed the same direction. The remaining rules are smaller hygiene fixes (modifier order, dead code, unused imports, transient markers) that I addressed in a separate cleanup commit.
+
+### Result on `AlansBranch`
+
+```
+af27751b refactor(actions): apply SonarLint cleanups around selection actions
+b0aabaa5 refactor(actions): Form Template Method on AbstractSelectionAction
+d87e99b6 test(actions): add characterization tests for SelectAllAction and ClearSelectionAction
+ba1a91b0 (origin/AlansBranch)  ‹ upstream baseline
+```
+
+- All 6 TestNG characterization tests still green after the cleanup commit.
+- Full reactor build (`mvn -s .maven-settings.xml --batch-mode -DskipTests verify`, 12 modules) › BUILD SUCCESS.
+- After re-opening the five files, SonarLint reports zero findings on them.
