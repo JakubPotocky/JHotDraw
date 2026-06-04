@@ -178,3 +178,4 @@ Keep the **Comments** column honest about what you *learned* by visiting each pa
 1. **A small impact set is a valid — and good — result.** It means the feature has **low coupling**; for the Undo-All CR only `UndoRedoManager` and `DrawView` need changing.
 2. **The marks shift with the CR.** If a CR required modifying the `UndoableEdit` interface itself, it would flip to **CHANGED** and propagate outward through `DefaultDrawing` and `AbstractFigure`, giving a much larger impact set. The **algorithm is identical** either way — what changes is your judgment at each NEXT class about whether it needs modification.
 3. **For the portfolio:** the two CHANGED classes plus the three UNCHANGED ones are the packages you "visited"; the gray (never-reached) ones you did not.
+
