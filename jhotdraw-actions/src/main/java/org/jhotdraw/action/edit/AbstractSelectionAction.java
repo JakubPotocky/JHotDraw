@@ -52,11 +52,11 @@ public abstract class AbstractSelectionAction extends AbstractAction {
      * The target of the action or null if the action acts on the currently
      * focused component.
      */
-    protected JComponent target;
+    protected transient JComponent target;
     /**
      * This variable keeps a strong reference on the property change listener.
      */
-    private PropertyChangeListener propertyHandler;
+    private transient PropertyChangeListener propertyHandler;
 
     /**
      * Creates a new instance which acts on the specified component.
@@ -64,19 +64,15 @@ public abstract class AbstractSelectionAction extends AbstractAction {
      * @param target The target of the action. Specify null for the currently
      * focused component.
      */
-    public AbstractSelectionAction(JComponent target) {
+    protected AbstractSelectionAction(JComponent target) {
         this.target = target;
         if (target != null) {
             // Register with a weak reference on the JComponent.
-            propertyHandler = new PropertyChangeListener() {
-                @Override
-                public void propertyChange(PropertyChangeEvent evt) {
-                    String n = evt.getPropertyName();
-                    if ("enabled".equals(n)) {
-                        updateEnabled();
-                    } else if (n.equals(EditableComponent.SELECTION_EMPTY_PROPERTY)) {
-                        updateEnabled();
-                    }
+            propertyHandler = (PropertyChangeEvent evt) -> {
+                String n = evt.getPropertyName();
+                if ("enabled".equals(n)
+                        || EditableComponent.SELECTION_EMPTY_PROPERTY.equals(n)) {
+                    updateEnabled();
                 }
             };
             target.addPropertyChangeListener(new WeakPropertyChangeListener(propertyHandler));

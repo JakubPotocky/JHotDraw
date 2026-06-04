@@ -41,8 +41,8 @@ public abstract class AbstractSelectedAction
         extends AbstractAction implements Disposable {
 
     private static final long serialVersionUID = 1L;
-    private DrawingEditor editor;
-    transient private DrawingView activeView;
+    private transient DrawingEditor editor;
+    private transient DrawingView activeView;
 
     private class EventHandler implements PropertyChangeListener, FigureSelectionListener, Serializable {
 
@@ -75,16 +75,15 @@ public abstract class AbstractSelectedAction
         public void selectionChanged(FigureSelectionEvent evt) {
             updateEnabledState();
         }
-    };
+    }
     private EventHandler eventHandler = new EventHandler();
 
     /**
      * Creates an action which acts on the selected figures on the current view
      * of the specified editor.
      */
-    public AbstractSelectedAction(DrawingEditor editor) {
+    protected AbstractSelectedAction(DrawingEditor editor) {
         setEditor(editor);
-        //updateEnabledState();
     }
 
     /**

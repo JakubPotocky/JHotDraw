@@ -7,11 +7,10 @@
  */
 package org.jhotdraw.action.edit;
 
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.text.*;
+import javax.swing.JComponent;
+import javax.swing.text.JTextComponent;
 import org.jhotdraw.api.gui.EditableComponent;
-import org.jhotdraw.util.*;
+import org.jhotdraw.util.ResourceBundleUtil;
 
 /**
  * Clears (de-selects) the selected region.
