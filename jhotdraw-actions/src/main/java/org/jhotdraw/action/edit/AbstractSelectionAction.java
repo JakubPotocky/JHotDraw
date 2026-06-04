@@ -8,10 +8,13 @@
  */
 package org.jhotdraw.action.edit;
 
+import java.awt.KeyboardFocusManager;
+import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
+import javax.swing.text.JTextComponent;
 import org.jhotdraw.api.gui.EditableComponent;
 import org.jhotdraw.beans.WeakPropertyChangeListener;
 
@@ -79,6 +82,38 @@ public abstract class AbstractSelectionAction extends AbstractAction {
             target.addPropertyChangeListener(new WeakPropertyChangeListener(propertyHandler));
         }
     }
+
+    /**
+     * Template method shared by {@link SelectAllAction} and
+     * {@link ClearSelectionAction}: resolves the focused component and
+     * dispatches to the appropriate hook depending on its runtime type.
+     * Subclasses customize behavior via {@link #actOnEditableComponent} and
+     * {@link #actOnTextComponent}.
+     */
+    @Override
+    public final void actionPerformed(ActionEvent evt) {
+        JComponent c = target;
+        if (c == null && (KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                getPermanentFocusOwner() instanceof JComponent)) {
+            c = (JComponent) KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    getPermanentFocusOwner();
+        }
+        if (c != null && c.isEnabled()) {
+            if (c instanceof EditableComponent) {
+                actOnEditableComponent((EditableComponent) c);
+            } else if (c instanceof JTextComponent) {
+                actOnTextComponent((JTextComponent) c);
+            } else {
+                c.getToolkit().beep();
+            }
+        }
+    }
+
+    /** Hook: perform the action on a JHotDraw {@link EditableComponent}. */
+    protected abstract void actOnEditableComponent(EditableComponent c);
+
+    /** Hook: perform the action on a Swing {@link JTextComponent}. */
+    protected abstract void actOnTextComponent(JTextComponent c);
 
     protected void updateEnabled() {
         if (target instanceof EditableComponent) {
