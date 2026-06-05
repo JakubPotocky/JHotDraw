@@ -586,3 +586,135 @@ Combined evidence:
 - Every collaborator that crosses a class boundary (`EditableComponent`, `DrawingEditor`, `DrawingView`, `Drawing`, `Figure`, `Toolkit`) is mocked, so each test exercises exactly one method and one path.
 - Java assertions guard the test fixtures themselves so that a broken fixture cannot masquerade as a feature regression.
 - The full reactor still builds (`mvn verify` → 12 modules green), so the new dependencies do not poison any other module.
+
+
+---
+
+# Chapter: BehaviorDrivenLab — JGiven + AssertJ + AssertJ-Swing
+
+> **References:** [JGiven] (https://jgiven.org); [AssertJ] (https://assertj.github.io/doc/); [AssertJ-Swing] (https://joel-costigliola.github.io/assertj/assertj-swing.html).
+> **Selected feature:** Automatic Selection — *Select All*, *Deselect All*, *Select Same*.
+
+## 1. User stories → Given / When / Then scenarios
+
+The user stories defined in the *ChangeReqLab* chapter are translated below into BDD sentences. Each row is a JGiven `@Test` method in the new test classes.
+
+| User story | Scenario (Given / When / Then) | JGiven test method |
+|---|---|---|
+| **US-1** *As a user I want to select all elements at once* | **Given** a focused, enabled `EditableComponent` <br> **When** the user invokes Select All <br> **Then** `selectAll()` is invoked exactly once and `clearSelection()` is never invoked | `us1_select_all_on_editable_component` |
+| **US-1** | **Given** a focused `JTextField` containing `"hello world"` <br> **When** the user invokes Select All <br> **Then** the selection range is `[0, 11)` | `us1_select_all_on_text_field` |
+| **US-1 (Swing)** | **Given** a visible window with a `JTextField` containing `"hello world"` <br> **When** the user invokes Select All on the focused text field <br> **Then** the field reports `"hello world"` as its selected text | `us1_select_all_through_assertj_swing` |
+| **US-1 (boundary)** | **Given** a focused but disabled `EditableComponent` <br> **When** the user invokes Select All <br> **Then** neither `selectAll()` nor `clearSelection()` is invoked | `us1_select_all_on_disabled_component_is_a_no_op` |
+| **US-2** *As a user I want to deselect everything quickly* | **Given** a focused, enabled `EditableComponent` <br> **When** the user invokes Deselect All <br> **Then** `clearSelection()` is invoked exactly once | `us2_deselect_all_on_editable_component` |
+| **US-2** | **Given** a focused `JTextField` containing `"hello world"` <br> **When** the full text is pre-selected and the user invokes Deselect All <br> **Then** the caret is collapsed (`selectionStart == selectionEnd`) | `us2_deselect_all_on_text_field` |
+| **US-2 (boundary)** | **Given** a focused but disabled `EditableComponent` <br> **When** the user invokes Deselect All <br> **Then** no selection method is called | `us2_deselect_all_on_disabled_component_is_a_no_op` |
+| **US-3** *As a user I want to select all figures of the same kind as the current selection* | **Given** a drawing with 3 `FigureKindA` and 1 `FigureKindB`, and a selection containing one `FigureKindA` <br> **When** the user invokes Select Same <br> **Then** every `FigureKindA` is added to the selection and no `FigureKindB` is added | `us3_select_same_best_case` |
+| **US-3 (boundary)** | **Given** an empty drawing and a selection of one figure <br> **When** the user invokes Select Same <br> **Then** `view.addToSelection(...)` is never called | `us3_select_same_on_empty_drawing` |
+| **US-3 (boundary)** | **Given** a non-empty drawing and an empty selection <br> **When** the user invokes Select Same <br> **Then** `view.addToSelection(...)` is never called | `us3_select_same_on_empty_selection` |
+| **US-3 (boundary)** | **Given** a drawing with both `FigureKindA` and `FigureKindB`, and a selection containing one figure of each kind <br> **When** the user invokes Select Same <br> **Then** every figure of either class is added | `us3_select_same_with_mixed_selection` |
+
+## 2. Maven setup
+
+Three test-scope dependencies were added to both [jhotdraw-actions/pom.xml](jhotdraw-actions/pom.xml) and [jhotdraw-core/pom.xml](jhotdraw-core/pom.xml):
+
+| Library | Version | Role |
+|---|---|---|
+| `com.tngtech.jgiven:jgiven-junit` | `1.3.1` | BDD scenario runtime (last 1.x line, Java-8 compatible) |
+| `org.assertj:assertj-core` | `3.24.2` | Domain-specific fluent assertions |
+| `org.assertj:assertj-swing-junit` | `3.17.1` | Swing GUI automation (only `jhotdraw-actions`) |
+
+Both modules also configure Surefire with
+
+```xml
+<argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+```
+
+so JGiven's ByteBuddy class generation works on Java 17+ runtimes (the project still compiles to Java 8 bytecode but the test JVM is Java 21).
+
+## 3. Test classes
+
+- [AutomaticSelectionBddTest.java](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/AutomaticSelectionBddTest.java) — 6 scenarios for US-1 and US-2. Three nested `Stage` classes (`GivenAComponent`, `WhenTheUser`, `ThenTheComponent`) hold the BDD vocabulary. Mockito mocks an object that is simultaneously a `JComponent` and an `EditableComponent` via `withSettings().extraInterfaces(...)`.
+- [SelectAllSwingBddTest.java](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectAllSwingBddTest.java) — one Swing-driven scenario using `FrameFixture` and `JTextComponentFixture` from AssertJ-Swing. The whole class is skipped via `org.junit.Assume.assumeFalse(GraphicsEnvironment.isHeadless())` when no display is available.
+- [SelectSameBddTest.java](jhotdraw-core/src/test/java/org/jhotdraw/draw/action/SelectSameBddTest.java) — 4 scenarios for US-3. Two private nested `Figure` interfaces (`FigureKindA` and `FigureKindB`) supply distinct `Class<?>` keys without dragging in concrete `AbstractFigure` subclasses.
+
+## 4. JGiven idioms used
+
+- `extends ScenarioTest<Given, When, Then>` — produces `given()`, `when()`, `then()` chain entry points.
+- `@As("…")` — gives every `@Test` method a human-readable scenario title that appears in the JGiven HTML report (`target/jgiven-reports`).
+- `@ProvidedScenarioState` / `@ExpectedScenarioState` — JGiven autowires the same `target` / `editable` / `textField` instances across the three stages, so the scenario reads as one continuous sentence.
+- Method names use `_$_` placeholders (e.g. `select_all_is_invoked_$_times`) and `@Quoted` parameters to render arguments inline in the report (`select all is invoked 1 times`).
+- `org.mockito.Mockito.when(...)` is fully qualified inside Stage subclasses because `Stage<SELF>` already exposes its own no-arg `when()` chain method that would otherwise shadow the static import.
+
+## 5. AssertJ assertions
+
+AssertJ replaces hand-rolled equality checks with fluent, domain-aware assertions:
+
+```java
+assertThat(textField.getSelectionStart()).isEqualTo(start);
+assertThat(textField.getSelectionEnd()).isEqualTo(end);
+assertThat(textField.getSelectionStart())
+    .as("after deselect, the caret must be collapsed")
+    .isEqualTo(textField.getSelectionEnd());
+assertThat(figuresA)
+    .as("there must be at least one kind-A figure to verify against")
+    .isNotEmpty();
+```
+
+`.as("…")` attaches an explicit description that AssertJ prints if the assertion fails, which is much more useful than a bare `expected: 11 but was: 0`.
+
+## 6. AssertJ-Swing automation
+
+[SelectAllSwingBddTest.java](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectAllSwingBddTest.java) demonstrates the full Swing automation chain:
+
+```java
+JFrame f = GuiActionRunner.execute(() -> {
+    JFrame jf = new JFrame("BDD-test");
+    JTextField tf = new JTextField(text, 20);
+    tf.setName("input");
+    jf.add(tf);
+    jf.pack();
+    return jf;
+});
+window = new FrameFixture(f);
+window.show();
+// ...
+window.textBox("input").focus();
+GuiActionRunner.execute(() -> new SelectAllAction(textField).actionPerformed(...));
+// ...
+window.textBox("input").requireText("hello world");
+assertThat(textField.getSelectedText()).isEqualTo("hello world");
+```
+
+`GuiActionRunner.execute(...)` ensures every Swing mutation runs on the EDT — required by `FailOnThreadViolationRepaintManager` semantics and the convention AssertJ-Swing builds on.
+
+## 7. Verification
+
+```powershell
+mvn -s .maven-settings.xml --batch-mode -pl jhotdraw-actions test
+# → Tests run: 24, Failures: 0, Errors: 0, Skipped: 0  — BUILD SUCCESS
+
+mvn -s .maven-settings.xml --batch-mode -pl jhotdraw-core test
+# → Tests run: 12, Failures: 0, Errors: 0, Skipped: 0  — BUILD SUCCESS
+
+mvn -s .maven-settings.xml --batch-mode -DskipTests verify
+# → 12/12 modules — BUILD SUCCESS
+```
+
+Combined coverage:
+
+- **6 TestNG characterization tests** (RefactoringLab safety net)
+- **17 JUnit 4 unit tests** (TestingLab — best case + boundary + smoke)
+- **11 BDD scenarios** (this lab — 6 actions + 1 Swing + 4 SelectSame)
+
+= **34 automated checks** guarding the *Automatic Selection* feature, with each user story (US-1, US-2, US-3) covered both at the unit-test layer and at the BDD-scenario layer.
+
+The JGiven HTML reports under `target/jgiven-reports` make every scenario human-readable for the portfolio reviewer:
+
+```
+GIVEN a focused enabled editable component
+ WHEN the user invokes select all
+ THEN select all is invoked 1 times
+  AND clear selection is never invoked
+```
+
+— which is the verbatim translation of the user-story acceptance criteria into executable specifications.
