@@ -138,11 +138,11 @@ The feature is described from the point of view of the end user of the Draw samp
 
 ---
 
-# Chapter: RefactoringLab — Refactoring to Patterns
+# Chapter: RefactoringLab â€” Refactoring to Patterns
 
 > **Branch used:** `AlansBranch` (feature branch off `development`, GitHub flow).
 > **Build/test command:** `mvn -s .maven-settings.xml --batch-mode verify`
-> **Reference:** Kerievsky, *Refactoring to Patterns* — Chapter 4 (smells) and the refactoring catalogue.
+> **Reference:** Kerievsky, *Refactoring to Patterns* â€” Chapter 4 (smells) and the refactoring catalogue.
 
 ---
 
@@ -154,10 +154,10 @@ example of **Duplicated Code** (Kerievsky, Ch. 4) between the two app-layer acti
 
 `SelectAllAction.actionPerformed` and `ClearSelectionAction.actionPerformed` were
 near byte-identical: roughly 14 of 18 lines were copy-paste. Only the body of the
-two `instanceof` branches differed — one calls `selectAll()`, the other calls
+two `instanceof` branches differed â€” one calls `selectAll()`, the other calls
 `clearSelection()` (and the JTextComponent variant).
 
-**Before — `SelectAllAction.actionPerformed`:**
+**Before â€” `SelectAllAction.actionPerformed`:**
 
 ```java
 JComponent c = target;
@@ -171,7 +171,7 @@ if (c != null && c.isEnabled()) {
 }
 ```
 
-**Before — `ClearSelectionAction.actionPerformed`:**
+**Before â€” `ClearSelectionAction.actionPerformed`:**
 
 ```java
 JComponent c = target;
@@ -191,11 +191,11 @@ This duplication is exactly the precondition Kerievsky lists for *Form Template 
 identical algorithm skeleton, varying leaf operations.
 
 **Other smells noted (but not addressed here):**
-- *Conditional Complexity* in the `instanceof` chain — would require widening
+- *Conditional Complexity* in the `instanceof` chain â€” would require widening
   `EditableComponent` or wrapping `JTextComponent`; cross-module change beyond scope.
-- *Long Method* in `SelectSameAction.selectSame()` — borderline at 10 LoC; logged for
+- *Long Method* in `SelectSameAction.selectSame()` â€” borderline at 10 LoC; logged for
   future *Compose Method*.
-- Cross-hierarchy duplication between the app-layer and draw-layer actions — the
+- Cross-hierarchy duplication between the app-layer and draw-layer actions â€” the
   app/draw split is intentional architecture, so collapsing the hierarchies is
   explicitly out of scope.
 
@@ -207,8 +207,8 @@ Pull the duplicated dispatch logic up into the existing common superclass
 `AbstractSelectionAction` and expose the variation points as abstract hooks:
 
 - `AbstractSelectionAction#actionPerformed(ActionEvent)` becomes a `final` template method.
-- Two new `protected abstract` hooks — `actOnEditableComponent(EditableComponent)`
-  and `actOnTextComponent(JTextComponent)` — capture the parts that vary.
+- Two new `protected abstract` hooks â€” `actOnEditableComponent(EditableComponent)`
+  and `actOnTextComponent(JTextComponent)` â€” capture the parts that vary.
 - Each subclass loses its own `actionPerformed` and only implements the two hooks.
 
 The public method signatures of both subclasses are preserved, so no caller has to change.
@@ -221,29 +221,29 @@ Small, behaviour-preserving steps with a green build between each commit:
 
 | Step | Action | Verification | Commit |
 |---|---|---|---|
-| 0 | Confirm I am on `AlansBranch`, baseline build is green. | `mvn ... -pl jhotdraw-actions -am verify` › BUILD SUCCESS | — |
+| 0 | Confirm I am on `AlansBranch`, baseline build is green. | `mvn ... -pl jhotdraw-actions -am verify` â€º BUILD SUCCESS | â€” |
 | 1 | Add a TestNG dependency to `jhotdraw-actions` (no test infra existed). Write 6 *characterization tests* that pin the exact current behaviour: dispatch on `EditableComponent`, dispatch on `JTextComponent`, no-op on disabled target, for *both* actions. | All 6 tests green. | `d87e99b6` `test(actions): add characterization tests for SelectAllAction and ClearSelectionAction` |
 | 2 | Apply *Form Template Method*: promote `actionPerformed` to `AbstractSelectionAction` as `final`; introduce two `protected abstract` hooks; replace the two subclasses' `actionPerformed` with hook implementations. | All 6 tests still green; full reactor (`mvn -DskipTests verify`, 12 modules) BUILD SUCCESS. | `b0aabaa5` `refactor(actions): Form Template Method on AbstractSelectionAction` |
 
 ### Why this order
 
-- **Tests before refactor** — without them the refactoring is not really
+- **Tests before refactor** â€” without them the refactoring is not really
   "behaviour-preserving"; it just *looks* preserving. The tests are the safety net.
-- **Parent-class change before child-class change** — adding the abstract hooks and
+- **Parent-class change before child-class change** â€” adding the abstract hooks and
   the `final actionPerformed` to the parent in the same commit as removing the
   subclasses' overrides keeps the project compiling at every commit boundary.
-- **One logical refactoring per commit** — so the diff is reviewable and easy to
+- **One logical refactoring per commit** â€” so the diff is reviewable and easy to
   revert if a regression is later discovered.
 
 ---
 
 ## 4. Refactoring(s) applied from [Ker05]
 
-**Form Template Method** — Kerievsky, *Refactoring to Patterns*, p. 345.
+**Form Template Method** â€” Kerievsky, *Refactoring to Patterns*, p. 345.
 
 **Reasoning.** The two methods exhibited the canonical input pattern for this
-refactoring: same algorithm skeleton (resolve focused JComponent › guard on
-enabled › dispatch on runtime type), differing only in the leaf operations
+refactoring: same algorithm skeleton (resolve focused JComponent â€º guard on
+enabled â€º dispatch on runtime type), differing only in the leaf operations
 (*what* to do for each component kind). Kerievsky's book pairs this exact smell
 (Duplicated Code with vertical variation) with *Form Template Method* as the
 mechanical fix. *Extract Superclass* was not needed because
@@ -256,7 +256,7 @@ mechanical fix. *Extract Superclass* was not needed because
   is a Swing class I cannot retrofit, and adding wrapper classes for it would
   cross the architectural boundary the change request explicitly told me to
   respect.
-- *Extract Method* on `SelectSameAction.selectSame()` — out of scope; would belong
+- *Extract Method* on `SelectSameAction.selectSame()` â€” out of scope; would belong
   in a separate commit on the draw-layer hierarchy.
 
 ---
@@ -266,24 +266,24 @@ mechanical fix. *Extract Superclass* was not needed because
 ```
 b0aabaa5 refactor(actions): Form Template Method on AbstractSelectionAction
 d87e99b6 test(actions): add characterization tests for SelectAllAction and ClearSelectionAction
-ba1a91b0 (origin/AlansBranch)  ‹ upstream baseline
+ba1a91b0 (origin/AlansBranch)  â€¹ upstream baseline
 ```
 
-- `AbstractSelectionAction` — gained `final actionPerformed(ActionEvent)` plus
+- `AbstractSelectionAction` â€” gained `final actionPerformed(ActionEvent)` plus
   two `protected abstract` hooks.
-- `SelectAllAction` — `actionPerformed` deleted; replaced by 4-line
+- `SelectAllAction` â€” `actionPerformed` deleted; replaced by 4-line
   `actOnEditableComponent` and 4-line `actOnTextComponent`.
-- `ClearSelectionAction` — same shape.
+- `ClearSelectionAction` â€” same shape.
 - 6 TestNG characterization tests added (all green, before *and* after the refactor).
 - Full reactor build green (12 modules).
-- Branch ready for a pull request `AlansBranch` › `develop`.
+- Branch ready for a pull request `AlansBranch` â€º `develop`.
 
 ### Purpose of the refactoring
 
 Beyond removing duplication, the *Form Template Method* refactoring **prepares**
 the actions for the upcoming change request (status-bar selection counter):
-once the dispatch logic lives in a single place, any cross-cutting addition —
-logging, telemetry, status updates — can be applied to *both* `SelectAll` and
+once the dispatch logic lives in a single place, any cross-cutting addition â€”
+logging, telemetry, status updates â€” can be applied to *both* `SelectAll` and
 `ClearSelection` by editing one method instead of two.
 
 
@@ -297,9 +297,9 @@ After installing SonarLint v5.3.0 and opening the five target files, SonarLint r
 |---|---|---|---|
 | `AbstractSelectionAction` | `java:S1604` Anonymous inner class can be a lambda | Long Method / scaffolding noise | Replaced the 11-line anonymous `PropertyChangeListener` with a 6-line lambda. |
 | `AbstractSelectionAction` | `java:S5993` Abstract class has a public constructor | Inappropriate intimacy / API hygiene | Changed `public AbstractSelectionAction(...)` to `protected`. |
-| `AbstractSelectionAction` | `java:S1948` Non-`Serializable` field in a `Serializable` class | (no [Ker05] match — pure correctness) | Marked `target` and `propertyHandler` as `transient`. |
+| `AbstractSelectionAction` | `java:S1948` Non-`Serializable` field in a `Serializable` class | (no [Ker05] match â€” pure correctness) | Marked `target` and `propertyHandler` as `transient`. |
 | `AbstractSelectionAction` | `java:S1871` Two branches in a conditional have the same implementation | Duplicated Code | Collapsed `if ... else if ...` into a single `if (... \|\| ...)` inside the lambda. |
-| `AbstractSelectedAction` | `java:S1124` Modifier order does not follow JLS | Code style / readability | `transient private DrawingView` › `private transient DrawingView`. |
+| `AbstractSelectedAction` | `java:S1124` Modifier order does not follow JLS | Code style / readability | `transient private DrawingView` â€º `private transient DrawingView`. |
 | `AbstractSelectedAction` | `java:S1116` Empty statement | Speculative Generality | Removed stray `;` after the inner `EventHandler` class definition. |
 | `AbstractSelectedAction` | `java:S125`  Commented-out code | Comments-as-Deodorant (Ch. 4) | Removed `//updateEnabledState();` from the constructor. |
 | `AbstractSelectedAction` | `java:S5993` Abstract class has a public constructor | API hygiene | Changed `public AbstractSelectedAction(DrawingEditor)` to `protected`. |
@@ -308,7 +308,7 @@ After installing SonarLint v5.3.0 and opening the five target files, SonarLint r
 
 ### Why these findings are consistent with my main refactoring
 
-The biggest finding (`java:S1871` Duplicated branches) is exactly the same family of smell as the **Duplicated Code** I addressed with *Form Template Method* in section 4 above — SonarLint independently confirmed the same direction. The remaining rules are smaller hygiene fixes (modifier order, dead code, unused imports, transient markers) that I addressed in a separate cleanup commit.
+The biggest finding (`java:S1871` Duplicated branches) is exactly the same family of smell as the **Duplicated Code** I addressed with *Form Template Method* in section 4 above â€” SonarLint independently confirmed the same direction. The remaining rules are smaller hygiene fixes (modifier order, dead code, unused imports, transient markers) that I addressed in a separate cleanup commit.
 
 ### Result on `AlansBranch`
 
@@ -316,20 +316,20 @@ The biggest finding (`java:S1871` Duplicated branches) is exactly the same famil
 af27751b refactor(actions): apply SonarLint cleanups around selection actions
 b0aabaa5 refactor(actions): Form Template Method on AbstractSelectionAction
 d87e99b6 test(actions): add characterization tests for SelectAllAction and ClearSelectionAction
-ba1a91b0 (origin/AlansBranch)  ‹ upstream baseline
+ba1a91b0 (origin/AlansBranch)  â€¹ upstream baseline
 ```
 
 - All 6 TestNG characterization tests still green after the cleanup commit.
-- Full reactor build (`mvn -s .maven-settings.xml --batch-mode -DskipTests verify`, 12 modules) › BUILD SUCCESS.
+- Full reactor build (`mvn -s .maven-settings.xml --batch-mode -DskipTests verify`, 12 modules) â€º BUILD SUCCESS.
 - After re-opening the five files, SonarLint reports zero findings on them.
 
 
 ---
 
-# Chapter: ActualizationLab — SOLID and Clean Architecture
+# Chapter: ActualizationLab â€” SOLID and Clean Architecture
 
 > **Reference:** Martin, *Clean Architecture* (2017); Martin, *Agile Software Development, Principles, Patterns, and Practices* (2002, SOLID).
-> **Selected feature:** Automatic Selection — *Select All*, *Deselect All*, *Select Same*.
+> **Selected feature:** Automatic Selection â€” *Select All*, *Deselect All*, *Select Same*.
 
 The classes I will refer to throughout this chapter are the same ones from the Concept-Location and Refactoring chapters:
 
@@ -339,9 +339,9 @@ The classes I will refer to throughout this chapter are the same ones from the C
 
 ---
 
-## 1. SOLID — concrete examples in the selection feature
+## 1. SOLID â€” concrete examples in the selection feature
 
-### S — Single Responsibility Principle
+### S â€” Single Responsibility Principle
 > *A class should have one and only one reason to change.*
 
 After the *Form Template Method* refactoring (commit `b0aabaa5`):
@@ -350,9 +350,9 @@ After the *Form Template Method* refactoring (commit `b0aabaa5`):
 - `SelectAllAction` has **one** reason to change: what "select all" means for each component kind (`selectAll()`).
 - `ClearSelectionAction` has **one** reason to change: what "deselect all" means (`clearSelection()` / collapsing the text caret).
 
-Before the refactoring SRP was violated: the dispatch *and* the per-component behavior were both inside each subclass' `actionPerformed`, so a change in dispatch policy forced edits in two places. Now dispatch lives in the base class and behavior lives in hooks — each class has exactly one axis of change.
+Before the refactoring SRP was violated: the dispatch *and* the per-component behavior were both inside each subclass' `actionPerformed`, so a change in dispatch policy forced edits in two places. Now dispatch lives in the base class and behavior lives in hooks â€” each class has exactly one axis of change.
 
-### O — Open/Closed Principle
+### O â€” Open/Closed Principle
 > *Software entities should be open for extension, closed for modification.*
 
 `AbstractSelectionAction` is now a textbook OCP example:
@@ -367,31 +367,31 @@ protected abstract void actOnEditableComponent(EditableComponent c);
 protected abstract void actOnTextComponent(JTextComponent c);
 ```
 
-Adding a new "selection" semantics (e.g. *Invert Selection*) is done by **extending** `AbstractSelectionAction` and implementing the two hooks — no edit to the base class. `final` on `actionPerformed` enforces the "closed" half of the principle.
+Adding a new "selection" semantics (e.g. *Invert Selection*) is done by **extending** `AbstractSelectionAction` and implementing the two hooks â€” no edit to the base class. `final` on `actionPerformed` enforces the "closed" half of the principle.
 
-### L — Liskov Substitution Principle
+### L â€” Liskov Substitution Principle
 > *Subtypes must be substitutable for their base type.*
 
 `SelectAllAction` and `ClearSelectionAction` honor LSP w.r.t. `AbstractSelectionAction`:
 
 - They never throw stronger exceptions than the base contract.
 - They never narrow the precondition (they accept any `target` the base accepts).
-- They preserve the post-condition expressed by the characterization tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) — when the base says "dispatch on focused EditableComponent", both subclasses really do operate on that component.
+- They preserve the post-condition expressed by the characterization tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) â€” when the base says "dispatch on focused EditableComponent", both subclasses really do operate on that component.
 
 `SelectSameAction extends AbstractSelectedAction` is also LSP-clean: it uses the inherited `getView()` / `getEditor()` exactly as a generic `AbstractSelectedAction` client would, and adds no surprises on top.
 
-### I — Interface Segregation Principle
+### I â€” Interface Segregation Principle
 > *Clients should not depend on interfaces they do not use.*
 
 JHotDraw's selection feature is built on small, focused interfaces rather than a fat "selectable thing" interface:
 
 - [EditableComponent](jhotdraw-core/src/main/java/org/jhotdraw/gui/EditableComponent.java) exposes only the four methods Edit actions need: `selectAll()`, `clearSelection()`, `delete()`, `duplicate()`. Drawing views implement it; so do custom editors. Neither has to know about the other.
-- `DrawingView` exposes the selection-set API (`getSelectedFigures()`, `addToSelection`, `clearSelection`) separately from the rendering API (`drawingChanged`, `getDrawing`, …). `SelectSameAction` depends only on the selection slice.
+- `DrawingView` exposes the selection-set API (`getSelectedFigures()`, `addToSelection`, `clearSelection`) separately from the rendering API (`drawingChanged`, `getDrawing`, â€¦). `SelectSameAction` depends only on the selection slice.
 - `Figure` is itself decomposed into smaller mixins (`AttributeKeys`, change listeners, etc.) so that an action interested only in attribute *equality* (the core of "Select Same") never sees rendering or geometry methods it does not call.
 
-ISP violation example we *avoided*: had `EditableComponent` been merged into `DrawingView`, `SelectAllAction` would suddenly depend on rendering methods it never invokes — a classic ISP smell.
+ISP violation example we *avoided*: had `EditableComponent` been merged into `DrawingView`, `SelectAllAction` would suddenly depend on rendering methods it never invokes â€” a classic ISP smell.
 
-### D — Dependency Inversion Principle
+### D â€” Dependency Inversion Principle
 > *Depend on abstractions, not on concretions.*
 
 Every collaborator the selection feature touches is an interface, not a class:
@@ -402,7 +402,7 @@ Every collaborator the selection feature touches is an interface, not a class:
 | `AbstractSelectedAction`  | `DrawingEditor`, `DrawingView`        | `DefaultDrawingEditor`, `DefaultDrawingView` |
 | `SelectSameAction`        | `Drawing`, `Figure`                   | `QuadTreeDrawing`, concrete `AbstractFigure` subclasses |
 
-The high-level *policy* ("when the user invokes Select All, select everything in the focused editable thing") does not import any concrete Swing component or any concrete `Figure` subclass. Concrete classes are wired in by the application bootstrap (`Main` / `DrawApplicationModel`), not by the action code — the dependency arrow points *inward* toward the abstractions, exactly as DIP prescribes.
+The high-level *policy* ("when the user invokes Select All, select everything in the focused editable thing") does not import any concrete Swing component or any concrete `Figure` subclass. Concrete classes are wired in by the application bootstrap (`Main` / `DrawApplicationModel`), not by the action code â€” the dependency arrow points *inward* toward the abstractions, exactly as DIP prescribes.
 
 ---
 
@@ -411,49 +411,49 @@ The high-level *policy* ("when the user invokes Select All, select everything in
 Robert C. Martin's *Clean Architecture* organizes code into concentric rings; the **Dependency Rule** says source-code dependencies may only point **inward**. Mapping the selection feature onto the four rings:
 
 ```
--¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬
+-Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¬
 -  Frameworks & Drivers   (Swing, AWT, KeyEvent, JTextField)    -   outer
--  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -
+-  -Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¬  -
 -  -  Interface Adapters  (Actions, Views)                   -  -
 -  -   SelectAllAction, ClearSelectionAction,                -  -
 -  -   SelectSameAction, DefaultDrawingView                  -  -
--  -  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -  -
+-  -  -Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¬  -  -
 -  -  -  Application / Use Cases                          -  -  -
 -  -  -   AbstractSelectionAction (dispatch policy),      -  -  -
 -  -  -   AbstractSelectedAction (editor/view binding)    -  -  -
--  -  -  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -  -  -
+-  -  -  -Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¬  -  -  -
 -  -  -  -  Entities / Enterprise Business Rules       -  -  -  -
 -  -  -  -   Drawing, Figure, attribute model,         -  -  -  -
 -  -  -  -   EditableComponent contract                -  -  -  -
--  -  -  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -  -  -
--  -  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -  -
--  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -   inner
-L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-
+-  -  -  LÂ¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦-  -  -  -
+-  -  LÂ¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦-  -  -
+-  LÂ¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦-  -   inner
+LÂ¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦Â¦-
 ```
 
-### Ring 1 — Entities (innermost)
+### Ring 1 â€” Entities (innermost)
 The most stable concepts: a **Drawing** is a collection of **Figures**; a Figure has attributes; an **EditableComponent** is anything that can `selectAll` / `clearSelection`. These do not depend on Swing, on actions, or on which menu item triggered them. They live in `jhotdraw-core` and `jhotdraw-api` and would survive a port to JavaFX.
 
-### Ring 2 — Use Cases (application policy)
+### Ring 2 â€” Use Cases (application policy)
 The *what should happen when the user asks to Select All* policy lives in `AbstractSelectionAction.actionPerformed` and in `SelectSameAction.selectSame()`. They orchestrate entities (call `selectAll()` on an `EditableComponent`, iterate `getDrawing().getChildren()`) but know nothing about Swing painting or key bindings. They depend only on the inner ring.
 
-### Ring 3 — Interface Adapters
+### Ring 3 â€” Interface Adapters
 `SelectAllAction`, `ClearSelectionAction`, `SelectSameAction` are **adapters**: they translate a Swing `ActionEvent` (outer ring) into a use-case call (inner ring). `DefaultDrawingView` adapts the `DrawingView` use-case interface to a concrete `JComponent`. This is the ring where the *plug* is shaped to fit Swing on one side and the use case on the other.
 
-### Ring 4 — Frameworks & Drivers
-Swing, AWT, the key-binding map, `JTextField`, the `EventHandler` glue — all the volatile I/O machinery. The selection feature touches Swing only through this outermost ring; the inner rings never `import javax.swing.*`. (After the SonarLint cleanup, even the imports in `SelectAllAction` are scoped to the precise Swing types it actually adapts.)
+### Ring 4 â€” Frameworks & Drivers
+Swing, AWT, the key-binding map, `JTextField`, the `EventHandler` glue â€” all the volatile I/O machinery. The selection feature touches Swing only through this outermost ring; the inner rings never `import javax.swing.*`. (After the SonarLint cleanup, even the imports in `SelectAllAction` are scoped to the precise Swing types it actually adapts.)
 
 ### Why the dependency direction matters here
 
-- `AbstractSelectionAction` depends on `EditableComponent` (entity), not the other way around. If we replace Swing with JavaFX, the entity contract is untouched — only the outer two rings change.
-- The unit tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) work by feeding the action a **fake** `EditableComponent`. That is only possible *because* the action depends on the abstraction, not on `DefaultDrawingView` — the tests run with no `DrawingEditor` and no real drawing at all. This is the practical pay-off of obeying the Dependency Rule.
-- The *Form Template Method* refactoring deliberately moved the dispatch policy **inward** (from each subclass into `AbstractSelectionAction`) and pushed the Swing-specific behavior **outward** (into the hooks). The refactoring therefore does not just remove duplication — it sharpens the ring boundary between application policy and Swing adapter.
+- `AbstractSelectionAction` depends on `EditableComponent` (entity), not the other way around. If we replace Swing with JavaFX, the entity contract is untouched â€” only the outer two rings change.
+- The unit tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) work by feeding the action a **fake** `EditableComponent`. That is only possible *because* the action depends on the abstraction, not on `DefaultDrawingView` â€” the tests run with no `DrawingEditor` and no real drawing at all. This is the practical pay-off of obeying the Dependency Rule.
+- The *Form Template Method* refactoring deliberately moved the dispatch policy **inward** (from each subclass into `AbstractSelectionAction`) and pushed the Swing-specific behavior **outward** (into the hooks). The refactoring therefore does not just remove duplication â€” it sharpens the ring boundary between application policy and Swing adapter.
 
 ### Where the architecture is *not* perfectly clean
 
 Honesty matters in the portfolio:
 
-- `AbstractSelectionAction` extends `javax.swing.AbstractAction` — that is a Ring-4 type leaking into Ring 2. A purer design would have the use case as a plain `SelectionUseCase` interface and a thin Swing adapter that *delegates* to it. JHotDraw chose pragmatic extension over strict separation, which is a common, conscious trade-off for desktop Swing apps.
+- `AbstractSelectionAction` extends `javax.swing.AbstractAction` â€” that is a Ring-4 type leaking into Ring 2. A purer design would have the use case as a plain `SelectionUseCase` interface and a thin Swing adapter that *delegates* to it. JHotDraw chose pragmatic extension over strict separation, which is a common, conscious trade-off for desktop Swing apps.
 - `SelectSameAction` reaches into `getView().getSelectedFigures()` synchronously; a strictly clean design would interpose a use-case interactor that emits a result the view subscribes to.
 
 Calling these out shows I understand both the principle and the trade-offs the original authors made.
@@ -464,4 +464,4 @@ Calling these out shows I understand both the principle and the trade-offs the o
 
 1. The five SOLID principles each have a concrete witness in the selection feature, and the *Form Template Method* refactoring measurably improved SRP (one reason to change per class) and OCP (`final` template + abstract hooks).
 2. Mapping the feature onto Clean Architecture's four rings shows that JHotDraw separates entities (`Drawing`, `Figure`, `EditableComponent`) from application policy (`Abstract*Action`), and that the SonarLint cleanups (transient fields, protected constructors, lambda) are small but real reinforcements of the inward-pointing dependency direction.
-3. The same characterization tests that protected the refactoring also *prove* that the use case is decoupled from Swing — they run without any real Swing window because the use case depends on `EditableComponent`, not on `JComponent`.
+3. The same characterization tests that protected the refactoring also *prove* that the use case is decoupled from Swing â€” they run without any real Swing window because the use case depends on `EditableComponent`, not on `JComponent`.

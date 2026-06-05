@@ -296,7 +296,7 @@ SelectSameAction.actionPerformed()
 
 ---
 
-# Part 8 — Change Impact Analysis (Marking Algorithm)
+# Part 8 â€” Change Impact Analysis (Marking Algorithm)
 
 > **Goal of this chapter**
 > Take the classes you found by concept location and decide, one by one, which ones a *real change request* would affect. We follow the marking algorithm from Rajlich, *Software Engineering: The Current Practice*, Figure 7.9.
@@ -306,7 +306,7 @@ SelectSameAction.actionPerformed()
 
 ---
 
-## Step 1 — Understand the four marks
+## Step 1 â€” Understand the four marks
 
 Every class will end up with exactly one of these labels:
 
@@ -322,7 +322,7 @@ The **Estimated Impact Set** at the end = every class marked **CHANGED** plus ev
 
 ---
 
-## Step 2 — Seed the algorithm with the three starting classes
+## Step 2 â€” Seed the algorithm with the three starting classes
 
 These are the classes concept location already gave you. Mark them **CHANGED** without inspection:
 
@@ -338,21 +338,21 @@ Now mark every BLANK neighbor of these three as **NEXT**.
 
 ---
 
-## Step 3 — How to find neighbors of a class (in VS Code)
+## Step 3 â€” How to find neighbors of a class (in VS Code)
 
 For each class you are inspecting, do this every time:
 
 1. Open the `.java` file.
-2. Look at the `extends` / `implements` clauses › those are *inheritance neighbors*.
-3. Look at every `import org.jhotdraw.*` line › those are *reference neighbors*.
-4. Right-click the class name in the editor › **Find All References** › that gives you *callers*.
-5. Inside the class body, look at every method call on a non-local variable › those are *callees*.
+2. Look at the `extends` / `implements` clauses â€º those are *inheritance neighbors*.
+3. Look at every `import org.jhotdraw.*` line â€º those are *reference neighbors*.
+4. Right-click the class name in the editor â€º **Find All References** â€º that gives you *callers*.
+5. Inside the class body, look at every method call on a non-local variable â€º those are *callees*.
 
 Write the neighbors down before moving on. **Do not invent neighbors you have not verified in the source.**
 
 ---
 
-## Step 4 — How to inspect one NEXT class
+## Step 4 â€” How to inspect one NEXT class
 
 For each NEXT class, ask yourself this single question:
 
@@ -360,45 +360,45 @@ For each NEXT class, ask yourself this single question:
 
 Then pick exactly one of three answers and write a one-sentence reason:
 
-- **UNCHANGED** — "No edits, and the change does not flow through here."
-- **PROPAGATES** — "No edits, but my class is on the call/observer path between an edited class and another class that may need editing."
-- **CHANGED** — "Yes, I have to open this file and modify it."
+- **UNCHANGED** â€” "No edits, and the change does not flow through here."
+- **PROPAGATES** â€” "No edits, but my class is on the call/observer path between an edited class and another class that may need editing."
+- **CHANGED** â€” "Yes, I have to open this file and modify it."
 
 If the answer is **PROPAGATES** or **CHANGED**, mark every still-BLANK neighbor of that class as **NEXT**.
-If the answer is **UNCHANGED**, stop — its neighbors are NOT added.
+If the answer is **UNCHANGED**, stop â€” its neighbors are NOT added.
 
 Keep doing Step 4 until there are zero NEXT classes left.
 
 ---
 
-## Step 5 — Apply the algorithm to JHotDraw (visit-order trace)
+## Step 5 â€” Apply the algorithm to JHotDraw (visit-order trace)
 
 Visit the classes in this order. Each row shows the mark and the one-sentence justification.
 
 | # | Class | Mark | Reason |
 |---|---|---|---|
-| 1 | `SelectAllAction` | CHANGED | Seeded — entry point of *Select All*. |
-| 2 | `ClearSelectionAction` | CHANGED | Seeded — entry point of *Deselect All*. |
-| 3 | `SelectSameAction` | CHANGED | Seeded — entry point of *Select Same*. |
+| 1 | `SelectAllAction` | CHANGED | Seeded â€” entry point of *Select All*. |
+| 2 | `ClearSelectionAction` | CHANGED | Seeded â€” entry point of *Deselect All*. |
+| 3 | `SelectSameAction` | CHANGED | Seeded â€” entry point of *Select Same*. |
 | 4 | `AbstractSelectionAction` | UNCHANGED | Parent of #1 and #2; only manages the action's enabled state, no selection-count work happens here. |
-| 5 | `AbstractSelectedAction` | UNCHANGED | Parent of #3; same story — uses `FigureSelectionEvent` only to refresh enablement. |
+| 5 | `AbstractSelectedAction` | UNCHANGED | Parent of #3; same story â€” uses `FigureSelectionEvent` only to refresh enablement. |
 | 6 | `EditableComponent` | UNCHANGED | Already exposes everything the status bar needs (`SELECTION_EMPTY_PROPERTY`); no new method required. |
-| 7 | `DrawingEditor` | PROPAGATES | The new status-bar listener has to follow the *active view* via `ACTIVE_VIEW_PROPERTY`, so the change passes through this interface — but the interface itself does not change. Adds neighbor › `DrawingView`. |
+| 7 | `DrawingEditor` | PROPAGATES | The new status-bar listener has to follow the *active view* via `ACTIVE_VIEW_PROPERTY`, so the change passes through this interface â€” but the interface itself does not change. Adds neighbor â€º `DrawingView`. |
 | 8 | `Figure` | UNCHANGED | The CR is about counting figures, not about per-figure behavior. |
-| 9 | `DefaultApplicationModel` | UNCHANGED | Only registers `SelectAllAction.ID` / `ClearSelectionAction.ID` in the action map — wiring stays the same. |
+| 9 | `DefaultApplicationModel` | UNCHANGED | Only registers `SelectAllAction.ID` / `ClearSelectionAction.ID` in the action map â€” wiring stays the same. |
 | 10 | `DefaultDrawingEditor` | UNCHANGED | Wires keystrokes for `SelectAllAction.ID`; key bindings are unchanged. |
 | 11 | `ButtonFactory` | UNCHANGED | Builds the toolbar button for `SelectSameAction`; button construction is unchanged. |
 | 12 | `DefaultMenuBuilder` | UNCHANGED | Only assembles the Edit menu by ID; menu structure is unchanged. |
 | 13 | `DrawingPanel` (Draw sample) | UNCHANGED | Only a layout host for tools/attributes; status bar lives one level up in `DrawView`. |
-| 14 | `DrawingView` (interface) | UNCHANGED | API already provides `getSelectionCount()`, `getSelectedFigures()`, `addFigureSelectionListener()`. Adds neighbor › `DrawView`. |
+| 14 | `DrawingView` (interface) | UNCHANGED | API already provides `getSelectionCount()`, `getSelectedFigures()`, `addFigureSelectionListener()`. Adds neighbor â€º `DrawView`. |
 | 15 | `DrawView` (Draw sample) | CHANGED | This is the `AbstractView` subclass that owns the scroll pane + `DrawingView`; the new status-bar component, label, and `FigureSelectionListener` go here. |
 | 16 | `AbstractView` | UNCHANGED | Generic life-cycle base; the status bar is added in the concrete `DrawView`, not in the base class. |
 
-When you finish row 16 there are no more NEXT classes › **STOP**.
+When you finish row 16 there are no more NEXT classes â€º **STOP**.
 
 ---
 
-## Step 6 — Write down the Estimated Impact Set
+## Step 6 â€” Write down the Estimated Impact Set
 
 The Estimated Impact Set is just the rows whose mark is **CHANGED** or **PROPAGATES**:
 
@@ -410,28 +410,28 @@ The Estimated Impact Set is just the rows whose mark is **CHANGED** or **PROPAGA
 | CHANGED | `DrawView` | `jhotdraw-samples-misc` |
 | PROPAGATES | `DrawingEditor` | `jhotdraw-core` |
 
-**Impact set size: 5 existing classes** (plus one new helper class — e.g. `SelectionCountStatusLabel implements FigureSelectionListener` — that you will *create*; new classes are not part of the marking algorithm).
+**Impact set size: 5 existing classes** (plus one new helper class â€” e.g. `SelectionCountStatusLabel implements FigureSelectionListener` â€” that you will *create*; new classes are not part of the marking algorithm).
 
 ---
 
-## Step 7 — Group the visited classes by package (Table 1)
+## Step 7 â€” Group the visited classes by package (Table 1)
 
 | Package | # classes visited | Comments |
 |---|---:|---|
 | `org.jhotdraw.action.edit` (module `jhotdraw-actions`) | 3 | App-layer Edit-menu controllers. Hosts `SelectAllAction`, `ClearSelectionAction` and their abstract base. They are component-agnostic: they delegate to whatever focused `EditableComponent` exists, which is what makes the same Edit menu work for both the canvas and a `JTextComponent`. |
-| `org.jhotdraw.api.gui` (module `jhotdraw-api`) | 1 | Defines `EditableComponent` (`selectAll`, `clearSelection`, `SELECTION_EMPTY_PROPERTY`). It is the seam between the generic edit actions and the concrete canvas — the reason the change does not propagate further into the action hierarchy. |
-| `org.jhotdraw.draw` (module `jhotdraw-core`) | 2 | Core drawing framework. `DrawingEditor` / `DefaultDrawingEditor` track the active `DrawingView`, own the action map, and bind keystrokes — the bridge between the *Select Same* path and the underlying selection state. |
-| `org.jhotdraw.draw.action` (module `jhotdraw-core`) | 2 | Drawing-aware action layer. `SelectSameAction` (3rd entry point) plus its abstract base `AbstractSelectedAction`, which already listens for `FigureSelectionEvent` to keep its enabled state in sync — confirming the Observer wiring needed by the new status bar is already in place. |
+| `org.jhotdraw.api.gui` (module `jhotdraw-api`) | 1 | Defines `EditableComponent` (`selectAll`, `clearSelection`, `SELECTION_EMPTY_PROPERTY`). It is the seam between the generic edit actions and the concrete canvas â€” the reason the change does not propagate further into the action hierarchy. |
+| `org.jhotdraw.draw` (module `jhotdraw-core`) | 2 | Core drawing framework. `DrawingEditor` / `DefaultDrawingEditor` track the active `DrawingView`, own the action map, and bind keystrokes â€” the bridge between the *Select Same* path and the underlying selection state. |
+| `org.jhotdraw.draw.action` (module `jhotdraw-core`) | 2 | Drawing-aware action layer. `SelectSameAction` (3rd entry point) plus its abstract base `AbstractSelectedAction`, which already listens for `FigureSelectionEvent` to keep its enabled state in sync â€” confirming the Observer wiring needed by the new status bar is already in place. |
 | `org.jhotdraw.draw.figure` (module `jhotdraw-core`) | 1 | Domain entity package containing `Figure`. Visited as a neighbor of `SelectSameAction`; UNCHANGED because the CR is about counting, not per-figure behavior. |
-| `org.jhotdraw.app` (module `jhotdraw-app`) | 3 | Application shell. `DefaultApplicationModel` registers the actions, `DefaultMenuBuilder` builds the Edit menu, `AbstractView` is the base class of `DrawView`. None change — the CR is satisfied at the View level. |
-| `org.jhotdraw.gui.action` (module `jhotdraw-gui`) | 1 | `ButtonFactory` constructs the SVG-style selection toolbar. UNCHANGED — the new behavior is not button-construction-time. |
+| `org.jhotdraw.app` (module `jhotdraw-app`) | 3 | Application shell. `DefaultApplicationModel` registers the actions, `DefaultMenuBuilder` builds the Edit menu, `AbstractView` is the base class of `DrawView`. None change â€” the CR is satisfied at the View level. |
+| `org.jhotdraw.gui.action` (module `jhotdraw-gui`) | 1 | `ButtonFactory` constructs the SVG-style selection toolbar. UNCHANGED â€” the new behavior is not button-construction-time. |
 | `org.jhotdraw.samples.draw` (module `jhotdraw-samples-misc`) | 2 | The Draw sample itself. `DrawingPanel` is a layout host (UNCHANGED); `DrawView` owns the scroll pane and the `DrawingView` and is the natural home for the new status bar (CHANGED). |
 
 **Total classes visited: 15** (3 seeded + 12 inspected).
 
 ---
 
-## Step 8 — Sanity checks before you submit
+## Step 8 â€” Sanity checks before you submit
 
 Tick these one by one:
 
@@ -443,10 +443,10 @@ Tick these one by one:
 
 ---
 
-## Step 9 — Key take-aways from this analysis
+## Step 9 â€” Key take-aways from this analysis
 
 - JHotDraw absorbs this change cheaply because the **Observer pattern is already in place**: `FigureSelectionEvent` / `FigureSelectionListener` over `DrawingView` publishes exactly what the new status bar needs.
 - The two paths split cleanly along the layer boundary:
   - **App-layer path** (Select All / Clear Selection) terminates at `EditableComponent` and never reaches the drawing core.
   - **Draw-layer path** (Select Same) propagates through `DrawingEditor` to `DrawingView`, then stops because the API is already sufficient.
-- The only real source edit beyond the three seeded actions lives in `DrawView` — that is where the status-bar component, the listener registration, and the label-text update belong.
+- The only real source edit beyond the three seeded actions lives in `DrawView` â€” that is where the status-bar component, the listener registration, and the label-text update belong.
