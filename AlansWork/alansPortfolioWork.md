@@ -465,3 +465,124 @@ Calling these out shows I understand both the principle and the trade-offs the o
 1. The five SOLID principles each have a concrete witness in the selection feature, and the *Form Template Method* refactoring measurably improved SRP (one reason to change per class) and OCP (`final` template + abstract hooks).
 2. Mapping the feature onto Clean Architecture's four rings shows that JHotDraw separates entities (`Drawing`, `Figure`, `EditableComponent`) from application policy (`Abstract*Action`), and that the SonarLint cleanups (transient fields, protected constructors, lambda) are small but real reinforcements of the inward-pointing dependency direction.
 3. The same characterization tests that protected the refactoring also *prove* that the use case is decoupled from Swing — they run without any real Swing window because the use case depends on `EditableComponent`, not on `JComponent`.
+
+
+---
+
+# Chapter: TestingLab — JUnit 4 unit tests for the selected feature
+
+> **Reference:** JUnit 4.13.2; Mockito 4.11.0; Java assertions ([JEP 8]/`java.lang.AssertionError`).
+> **Selected feature:** Automatic Selection — *Select All*, *Deselect All*, *Select Same*.
+
+## 1. Maven setup
+
+JUnit 4 and Mockito were not yet on either of the two modules that own the feature. I added them as `<scope>test</scope>` dependencies:
+
+- [jhotdraw-actions/pom.xml](jhotdraw-actions/pom.xml) — `junit:junit:4.13.2`, `org.mockito:mockito-core:4.11.0`.
+- [jhotdraw-core/pom.xml](jhotdraw-core/pom.xml) — same two artifacts.
+
+Mockito **4.11.0** is the last line that still supports Java 8, which is the build target for JHotDraw (`<maven.compiler.source>1.8</maven.compiler.source>`). Maven Surefire's default test pattern (`**/*Test.java`) automatically picks up the new files alongside the existing TestNG `*NGTest.java` ones; both providers run side-by-side. Surefire enables `-ea` by default, so my Java assertions are active during the test run.
+
+## 2. What was tested and why
+
+I focused on the **most important domain logic** for the feature — the part that survives a UI port and cannot be replaced by a Swing key binding:
+
+| Method under test | File | Why it is "important domain logic" |
+|---|---|---|
+| `AbstractSelectionAction#actionPerformed(ActionEvent)` (template method) | [AbstractSelectionAction.java](jhotdraw-actions/src/main/java/org/jhotdraw/action/edit/AbstractSelectionAction.java) | Dispatches to `EditableComponent` vs. `JTextComponent` vs. "beep" — the *policy* that all three scenarios depend on. |
+| `SelectAllAction#actOnEditableComponent` / `actOnTextComponent` | [SelectAllAction.java](jhotdraw-actions/src/main/java/org/jhotdraw/action/edit/SelectAllAction.java) | Per-component meaning of "select all". |
+| `ClearSelectionAction#actOnEditableComponent` / `actOnTextComponent` | [ClearSelectionAction.java](jhotdraw-actions/src/main/java/org/jhotdraw/action/edit/ClearSelectionAction.java) | Per-component meaning of "deselect". |
+| `SelectSameAction#selectSame()` | [SelectSameAction.java](jhotdraw-core/src/main/java/org/jhotdraw/draw/action/SelectSameAction.java) | Pure domain logic — collect classes from the current selection, then add every figure of those classes to the selection. |
+
+## 3. Test files created
+
+- [jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsJUnit4Test.java](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsJUnit4Test.java) — 11 tests covering `SelectAllAction` and `ClearSelectionAction`.
+- [jhotdraw-core/src/test/java/org/jhotdraw/draw/action/SelectSameActionJUnit4Test.java](jhotdraw-core/src/test/java/org/jhotdraw/draw/action/SelectSameActionJUnit4Test.java) — 6 tests covering `SelectSameAction#selectSame()`.
+
+## 4. Strategy: one path per test, mocks at every boundary
+
+Each test follows the rule from the assignment:
+
+> *A unit test should test a single code-path through a single method. When the execution of a method passes outside of that method, you have a dependency and should apply mocks/stubs.*
+
+Concrete realisations:
+
+- For `AbstractSelectionAction` I mock a **JComponent that also implements EditableComponent** in one Mockito instance using `withSettings().extraInterfaces(EditableComponent.class)`. The action therefore sees the right runtime type without me having to instantiate any real Swing widget.
+- For `JTextComponent` I use a real `JTextField` because it is a value object — no external state, deterministic, no I/O. Replacing it with a mock would not isolate any dependency (it would mock the standard library), so a real instance is the simpler choice.
+- For `SelectSameAction` every collaborator (`DrawingEditor`, `DrawingView`, `Drawing`, `Figure`) is a Mockito mock. Two private nested interfaces, `FigureKindA` and `FigureKindB`, give me deterministic distinct `Class<?>` keys without needing concrete `AbstractFigure` subclasses (which would drag in the rendering stack).
+
+## 5. Best-case tests
+
+| # | Test | Verifies |
+|---|---|---|
+| 1 | `selectAll_bestCase_editableComponent_invokesSelectAllExactlyOnce` | Best path: target is an `EditableComponent` → `selectAll()` is called exactly once and `clearSelection()` is never called. |
+| 2 | `selectAll_bestCase_jTextComponent_selectsFullText` | Best path on a `JTextField` containing `"hello world"` → selection range is `[0, 11)`. |
+| 3 | `clearSelection_bestCase_editableComponent_invokesClearSelectionExactlyOnce` | Mirror of #1 for `clearSelection`. |
+| 4 | `clearSelection_bestCase_jTextComponent_collapsesCaret` | After clearing a previously selected `"hello world"`, `selectionStart == selectionEnd`. |
+| 5 | `selectSame_bestCase_addsAllFiguresOfSameClassToSelection` | One `FigureKindA` is selected; a drawing of `[A, A, A, B]` results in the three `A`s added via `view.addToSelection(...)` and the `B` never added. |
+
+## 6. Boundary-case tests
+
+| # | Test | Boundary explored |
+|---|---|---|
+| 6 | `selectAll_boundary_disabledTarget_isNoOp` | `target.isEnabled() == false` → action must do nothing. |
+| 7 | `selectAll_boundary_emptyTextDocument_selectionRangeIsZeroLength` | Empty `JTextField` → selection range is `[0, 0)`. |
+| 8 | `selectAll_boundary_repeatedInvocations_areIdempotentInDispatch` | Calling `actionPerformed` three times yields exactly three `selectAll()` calls and zero `clearSelection()` calls — idempotent in *dispatch*, never crosses into the wrong branch. |
+| 9 | `selectAll_boundary_unknownComponentKind_beepsAndDoesNotSelect` | Target is a plain `JComponent` (neither `EditableComponent` nor `JTextComponent`) → `toolkit.beep()` is called once and no selection method is ever invoked. |
+| 10 | `clearSelection_boundary_disabledTarget_isNoOp` | Mirror of #6 for `clearSelection`. |
+| 11 | `clearSelection_boundary_alreadyEmptyTextDocument_remainsCollapsed` | Already-empty `JTextField` stays collapsed at `[0, 0]`. |
+| 12 | `selectSame_boundary_emptyDrawing_addsNothing` | Drawing has zero children → `view.addToSelection(...)` is never invoked. |
+| 13 | `selectSame_boundary_emptySelection_addsNothing` | Selection is empty → empty class-set → no figures are added even though the drawing is non-empty. |
+| 14 | `selectSame_boundary_noMatchingClasses_addsNothing` | Selected `FigureKindA` but the drawing only contains `FigureKindB` instances → nothing is added. |
+| 15 | `selectSame_boundary_mixedSelection_addsBothClasses` | Selection contains an `A` and a `B`; siblings of both kinds in the drawing → both are added. |
+| 16 | `constructor_registersOnTarget_andActionIsNotNull` | Both action constructors register a `PropertyChangeListener` on the target (the `WeakPropertyChangeListener` indirection from the parent class). |
+| 17 | `constructor_doesNotThrow_withValidEditor` | Smoke for `SelectSameAction(editor)`. |
+
+## 7. Java assertions for invariants
+
+Java's `assert` keyword is used for things that **must never be false** — fixture invariants. If they ever fire, the test infrastructure itself is broken (not the production code), and we want execution stopped immediately rather than letting a misleading "expected X but got Y" message bubble up.
+
+```java
+// SelectionActionsJUnit4Test#setUp
+assert editableTarget instanceof EditableComponent
+        : "Test fixture invariant violated: target is not an EditableComponent";
+
+// SelectSameActionJUnit4Test#setUp
+assert editor.getActiveView() != null : "fixture: active view must not be null";
+assert view.getDrawing() != null     : "fixture: drawing must not be null";
+
+// ClearSelectionAction best-case test, before exercising the action
+assertTrue("fixture: text should be selected before action runs",
+        textTarget.getSelectionEnd() > textTarget.getSelectionStart());
+```
+
+This matches the rule from the assignment:
+
+- `assert` halts the JVM with `AssertionError` — used for *should never happen* fixture invariants.
+- `IllegalArgumentException` / `NullPointerException` would let the program continue — not used here, because a broken fixture is not a recoverable condition.
+
+Surefire turns assertions on automatically (`-ea`), so all `assert` statements above run during `mvn test`.
+
+## 8. How I verified the feature
+
+```powershell
+mvn -s .maven-settings.xml --batch-mode -pl jhotdraw-actions test `
+    '-Dtest=SelectionActionsJUnit4Test' `
+    '-Dsurefire.failIfNoSpecifiedTests=false'
+# → Tests run: 11, Failures: 0, Errors: 0, Skipped: 0  — BUILD SUCCESS
+
+mvn -s .maven-settings.xml --batch-mode -pl jhotdraw-core test `
+    '-Dtest=SelectSameActionJUnit4Test' `
+    '-Dsurefire.failIfNoSpecifiedTests=false'
+# → Tests run: 6, Failures: 0, Errors: 0, Skipped: 0  — BUILD SUCCESS
+
+mvn -s .maven-settings.xml --batch-mode -DskipTests verify
+# → 12/12 modules — BUILD SUCCESS
+```
+
+Combined evidence:
+
+- **17 JUnit 4 tests** (best case + boundaries + smoke) on the three controllers of the feature, plus the 6 TestNG characterization tests added during the *Refactoring* lab → **23 automated checks** guarding the feature.
+- Every collaborator that crosses a class boundary (`EditableComponent`, `DrawingEditor`, `DrawingView`, `Drawing`, `Figure`, `Toolkit`) is mocked, so each test exercises exactly one method and one path.
+- Java assertions guard the test fixtures themselves so that a broken fixture cannot masquerade as a feature regression.
+- The full reactor still builds (`mvn verify` → 12 modules green), so the new dependencies do not poison any other module.
