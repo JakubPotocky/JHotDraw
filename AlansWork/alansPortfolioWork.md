@@ -322,3 +322,146 @@ ba1a91b0 (origin/AlansBranch)  ‹ upstream baseline
 - All 6 TestNG characterization tests still green after the cleanup commit.
 - Full reactor build (`mvn -s .maven-settings.xml --batch-mode -DskipTests verify`, 12 modules) › BUILD SUCCESS.
 - After re-opening the five files, SonarLint reports zero findings on them.
+
+
+---
+
+# Chapter: ActualizationLab — SOLID and Clean Architecture
+
+> **Reference:** Martin, *Clean Architecture* (2017); Martin, *Agile Software Development, Principles, Patterns, and Practices* (2002, SOLID).
+> **Selected feature:** Automatic Selection — *Select All*, *Deselect All*, *Select Same*.
+
+The classes I will refer to throughout this chapter are the same ones from the Concept-Location and Refactoring chapters:
+
+- `AbstractSelectionAction`, `SelectAllAction`, `ClearSelectionAction` (module `jhotdraw-actions`)
+- `AbstractSelectedAction`, `SelectSameAction` (module `jhotdraw-core`, package `org.jhotdraw.draw.action`)
+- Interfaces `EditableComponent`, `Figure`, `DrawingView`, `DrawingEditor` (module `jhotdraw-core`)
+
+---
+
+## 1. SOLID — concrete examples in the selection feature
+
+### S — Single Responsibility Principle
+> *A class should have one and only one reason to change.*
+
+After the *Form Template Method* refactoring (commit `b0aabaa5`):
+
+- `AbstractSelectionAction` has **one** reason to change: how a generic Edit action *dispatches* on the focused component (text vs. editable).
+- `SelectAllAction` has **one** reason to change: what "select all" means for each component kind (`selectAll()`).
+- `ClearSelectionAction` has **one** reason to change: what "deselect all" means (`clearSelection()` / collapsing the text caret).
+
+Before the refactoring SRP was violated: the dispatch *and* the per-component behavior were both inside each subclass' `actionPerformed`, so a change in dispatch policy forced edits in two places. Now dispatch lives in the base class and behavior lives in hooks — each class has exactly one axis of change.
+
+### O — Open/Closed Principle
+> *Software entities should be open for extension, closed for modification.*
+
+`AbstractSelectionAction` is now a textbook OCP example:
+
+```java
+public final void actionPerformed(ActionEvent e) {  // closed for modification
+    if (target instanceof EditableComponent || target instanceof JTextComponent) {
+        // dispatch to abstract hooks
+    }
+}
+protected abstract void actOnEditableComponent(EditableComponent c);
+protected abstract void actOnTextComponent(JTextComponent c);
+```
+
+Adding a new "selection" semantics (e.g. *Invert Selection*) is done by **extending** `AbstractSelectionAction` and implementing the two hooks — no edit to the base class. `final` on `actionPerformed` enforces the "closed" half of the principle.
+
+### L — Liskov Substitution Principle
+> *Subtypes must be substitutable for their base type.*
+
+`SelectAllAction` and `ClearSelectionAction` honor LSP w.r.t. `AbstractSelectionAction`:
+
+- They never throw stronger exceptions than the base contract.
+- They never narrow the precondition (they accept any `target` the base accepts).
+- They preserve the post-condition expressed by the characterization tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) — when the base says "dispatch on focused EditableComponent", both subclasses really do operate on that component.
+
+`SelectSameAction extends AbstractSelectedAction` is also LSP-clean: it uses the inherited `getView()` / `getEditor()` exactly as a generic `AbstractSelectedAction` client would, and adds no surprises on top.
+
+### I — Interface Segregation Principle
+> *Clients should not depend on interfaces they do not use.*
+
+JHotDraw's selection feature is built on small, focused interfaces rather than a fat "selectable thing" interface:
+
+- [EditableComponent](jhotdraw-core/src/main/java/org/jhotdraw/gui/EditableComponent.java) exposes only the four methods Edit actions need: `selectAll()`, `clearSelection()`, `delete()`, `duplicate()`. Drawing views implement it; so do custom editors. Neither has to know about the other.
+- `DrawingView` exposes the selection-set API (`getSelectedFigures()`, `addToSelection`, `clearSelection`) separately from the rendering API (`drawingChanged`, `getDrawing`, …). `SelectSameAction` depends only on the selection slice.
+- `Figure` is itself decomposed into smaller mixins (`AttributeKeys`, change listeners, etc.) so that an action interested only in attribute *equality* (the core of "Select Same") never sees rendering or geometry methods it does not call.
+
+ISP violation example we *avoided*: had `EditableComponent` been merged into `DrawingView`, `SelectAllAction` would suddenly depend on rendering methods it never invokes — a classic ISP smell.
+
+### D — Dependency Inversion Principle
+> *Depend on abstractions, not on concretions.*
+
+Every collaborator the selection feature touches is an interface, not a class:
+
+| Caller | Depends on (abstract) | Concrete impl. injected at runtime |
+|---|---|---|
+| `AbstractSelectionAction` | `EditableComponent`, `JTextComponent` | whatever has keyboard focus |
+| `AbstractSelectedAction`  | `DrawingEditor`, `DrawingView`        | `DefaultDrawingEditor`, `DefaultDrawingView` |
+| `SelectSameAction`        | `Drawing`, `Figure`                   | `QuadTreeDrawing`, concrete `AbstractFigure` subclasses |
+
+The high-level *policy* ("when the user invokes Select All, select everything in the focused editable thing") does not import any concrete Swing component or any concrete `Figure` subclass. Concrete classes are wired in by the application bootstrap (`Main` / `DrawApplicationModel`), not by the action code — the dependency arrow points *inward* toward the abstractions, exactly as DIP prescribes.
+
+---
+
+## 2. Clean Architecture for the selection feature
+
+Robert C. Martin's *Clean Architecture* organizes code into concentric rings; the **Dependency Rule** says source-code dependencies may only point **inward**. Mapping the selection feature onto the four rings:
+
+```
+-¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬
+-  Frameworks & Drivers   (Swing, AWT, KeyEvent, JTextField)    -   outer
+-  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -
+-  -  Interface Adapters  (Actions, Views)                   -  -
+-  -   SelectAllAction, ClearSelectionAction,                -  -
+-  -   SelectSameAction, DefaultDrawingView                  -  -
+-  -  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -  -
+-  -  -  Application / Use Cases                          -  -  -
+-  -  -   AbstractSelectionAction (dispatch policy),      -  -  -
+-  -  -   AbstractSelectedAction (editor/view binding)    -  -  -
+-  -  -  -¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¬  -  -  -
+-  -  -  -  Entities / Enterprise Business Rules       -  -  -  -
+-  -  -  -   Drawing, Figure, attribute model,         -  -  -  -
+-  -  -  -   EditableComponent contract                -  -  -  -
+-  -  -  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -  -  -
+-  -  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -  -
+-  L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-  -   inner
+L¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦-
+```
+
+### Ring 1 — Entities (innermost)
+The most stable concepts: a **Drawing** is a collection of **Figures**; a Figure has attributes; an **EditableComponent** is anything that can `selectAll` / `clearSelection`. These do not depend on Swing, on actions, or on which menu item triggered them. They live in `jhotdraw-core` and `jhotdraw-api` and would survive a port to JavaFX.
+
+### Ring 2 — Use Cases (application policy)
+The *what should happen when the user asks to Select All* policy lives in `AbstractSelectionAction.actionPerformed` and in `SelectSameAction.selectSame()`. They orchestrate entities (call `selectAll()` on an `EditableComponent`, iterate `getDrawing().getChildren()`) but know nothing about Swing painting or key bindings. They depend only on the inner ring.
+
+### Ring 3 — Interface Adapters
+`SelectAllAction`, `ClearSelectionAction`, `SelectSameAction` are **adapters**: they translate a Swing `ActionEvent` (outer ring) into a use-case call (inner ring). `DefaultDrawingView` adapts the `DrawingView` use-case interface to a concrete `JComponent`. This is the ring where the *plug* is shaped to fit Swing on one side and the use case on the other.
+
+### Ring 4 — Frameworks & Drivers
+Swing, AWT, the key-binding map, `JTextField`, the `EventHandler` glue — all the volatile I/O machinery. The selection feature touches Swing only through this outermost ring; the inner rings never `import javax.swing.*`. (After the SonarLint cleanup, even the imports in `SelectAllAction` are scoped to the precise Swing types it actually adapts.)
+
+### Why the dependency direction matters here
+
+- `AbstractSelectionAction` depends on `EditableComponent` (entity), not the other way around. If we replace Swing with JavaFX, the entity contract is untouched — only the outer two rings change.
+- The unit tests in [SelectionActionsNGTest](jhotdraw-actions/src/test/java/org/jhotdraw/action/edit/SelectionActionsNGTest.java) work by feeding the action a **fake** `EditableComponent`. That is only possible *because* the action depends on the abstraction, not on `DefaultDrawingView` — the tests run with no `DrawingEditor` and no real drawing at all. This is the practical pay-off of obeying the Dependency Rule.
+- The *Form Template Method* refactoring deliberately moved the dispatch policy **inward** (from each subclass into `AbstractSelectionAction`) and pushed the Swing-specific behavior **outward** (into the hooks). The refactoring therefore does not just remove duplication — it sharpens the ring boundary between application policy and Swing adapter.
+
+### Where the architecture is *not* perfectly clean
+
+Honesty matters in the portfolio:
+
+- `AbstractSelectionAction` extends `javax.swing.AbstractAction` — that is a Ring-4 type leaking into Ring 2. A purer design would have the use case as a plain `SelectionUseCase` interface and a thin Swing adapter that *delegates* to it. JHotDraw chose pragmatic extension over strict separation, which is a common, conscious trade-off for desktop Swing apps.
+- `SelectSameAction` reaches into `getView().getSelectedFigures()` synchronously; a strictly clean design would interpose a use-case interactor that emits a result the view subscribes to.
+
+Calling these out shows I understand both the principle and the trade-offs the original authors made.
+
+---
+
+## 3. Take-aways for the assignment
+
+1. The five SOLID principles each have a concrete witness in the selection feature, and the *Form Template Method* refactoring measurably improved SRP (one reason to change per class) and OCP (`final` template + abstract hooks).
+2. Mapping the feature onto Clean Architecture's four rings shows that JHotDraw separates entities (`Drawing`, `Figure`, `EditableComponent`) from application policy (`Abstract*Action`), and that the SonarLint cleanups (transient fields, protected constructors, lambda) are small but real reinforcements of the inward-pointing dependency direction.
+3. The same characterization tests that protected the refactoring also *prove* that the use case is decoupled from Swing — they run without any real Swing window because the use case depends on `EditableComponent`, not on `JComponent`.
