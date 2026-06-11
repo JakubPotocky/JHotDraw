@@ -150,7 +150,7 @@ public class ImageTool extends CreationTool {
                             ex.getMessage(),
                             null,
                             JOptionPane.ERROR_MESSAGE);
-                } catch (InterruptedException ix | ExecutionException ex) {
+                } catch (InterruptedException | ExecutionException ex) {
                     JOptionPane.showMessageDialog(view.getComponent(),
                             ex.getMessage(),
                             null,
