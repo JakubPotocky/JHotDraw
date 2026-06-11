@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="270" viewBox="0 0 1000 270">
+  <rect width="1000" height="270" fill="#ffffff"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L10,3 L0,6 Z" fill="#286b28"/>
+    </marker>
+  </defs>
+  <g font-family="Arial, sans-serif" font-size="14" text-anchor="middle">
+    <rect x="50" y="85" width="230" height="90" rx="8" fill="#e8f1ff" stroke="#2b4c7e"/>
+    <text x="165" y="113" font-weight="bold">User Story</text>
+    <text x="165" y="138">Copy selected figures</text>
+    <text x="165" y="158">and paste duplicates</text>
+    <line x1="280" y1="130" x2="335" y2="130" stroke="#286b28" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="335" y="45" width="290" height="170" rx="8" fill="#fff2d9" stroke="#9b6500"/>
+    <text x="480" y="72" font-weight="bold">BDD Scenarios</text>
+    <text x="480" y="99">1. Copy and paste rectangle</text>
+    <text x="480" y="123">2. Copy with empty selection</text>
+    <text x="480" y="147">3. Reject unsupported data</text>
+    <text x="480" y="171">4. Undo and redo paste</text>
+    <text x="480" y="195">5. Paste plain text</text>
+    <line x1="625" y1="130" x2="680" y2="130" stroke="#286b28" stroke-width="2" marker-end="url(#arrow)"/>
+    <rect x="680" y="85" width="260" height="90" rx="8" fill="#eefce8" stroke="#286b28"/>
+    <text x="810" y="112" font-weight="bold">Automated Verification</text>
+    <text x="810" y="139">CopyPasteBddTest</text>
+    <text x="810" y="161">5 tests, 0 failures</text>
+    <text x="500" y="245" font-size="13" fill="#444">Figure 6. The user story is mapped to executable Given-When-Then scenarios.</text>
+  </g>
+</svg>
