@@ -11,12 +11,9 @@ import org.jhotdraw.draw.figure.TextHolderFigure;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
-import javax.swing.undo.AbstractUndoableEdit;
-import javax.swing.undo.UndoableEdit;
 import org.jhotdraw.draw.*;
 import org.jhotdraw.draw.text.*;
 import org.jhotdraw.geom.Insets2D;
-import org.jhotdraw.util.ResourceBundleUtil;
 
 /**
  * A tool to edit existing figures that implement the TextHolderFigure
@@ -53,123 +50,47 @@ import org.jhotdraw.util.ResourceBundleUtil;
  * @see TextHolderFigure
  * @see FloatingTextArea
  */
-public class TextAreaEditingTool extends AbstractTool implements ActionListener {
+public class TextAreaEditingTool extends AbstractTextEditingTool {
 
     private static final long serialVersionUID = 1L;
-    private FloatingTextArea textArea;
-    private TextHolderFigure typingTarget;
+    private FloatingTextComponent editor;
 
     /**
      * Creates a new instance.
      */
     public TextAreaEditingTool(TextHolderFigure typingTarget) {
-        this.typingTarget = typingTarget;
-    }
-
-    @Override
-    public void deactivate(DrawingEditor editor) {
-        endEdit();
-        super.deactivate(editor);
-    }
-
-    /**
-     * Creates a new figure at the mouse location.
-     * If editing is in progress, this finishes editing.
-     */
-    @Override
-    public void mousePressed(MouseEvent e) {
-        if (typingTarget != null) {
-            beginEdit(typingTarget);
-            updateCursor(getView(), e.getPoint());
-        }
+        super(typingTarget);
     }
 
     @Override
     public void draw(Graphics2D g) {
     }
 
-    protected void beginEdit(TextHolderFigure textHolder) {
-        if (textArea == null) {
-            textArea = new FloatingTextArea();
-            //textArea.addActionListener(this);
-        }
-        if (textHolder != typingTarget && typingTarget != null) {
-            endEdit();
-        }
-        textArea.createOverlay(getView(), textHolder);
+    @Override
+    protected FloatingTextComponent createEditor() {
+        editor = new FloatingTextArea();
+        return editor;
+    }
+
+    @Override
+    protected void initializeEditor(TextHolderFigure textHolder) {
+        FloatingTextArea textArea = (FloatingTextArea) editor;
         textArea.setBounds(getFieldBounds(textHolder), textHolder.getText());
-        textArea.requestFocus();
-        typingTarget = textHolder;
+    }
+
+    @Override
+    protected FloatingTextComponent getFloatingEditor() {
+        return editor;
     }
 
     private Rectangle2D.Double getFieldBounds(TextHolderFigure figure) {
         Rectangle2D.Double r = figure.getDrawingArea();
         Insets2D.Double insets = figure.getInsets();
         insets.subtractTo(r);
-        // FIXME - Find a way to determine the parameters for grow.
-        //r.grow(1,2);
-        //r.width += 16;
         r.x -= 1;
         r.y -= 2;
         r.width += 18;
         r.height += 4;
         return r;
-    }
-
-    protected void endEdit() {
-        if (typingTarget != null) {
-            typingTarget.willChange();
-            final TextHolderFigure editedFigure = typingTarget;
-            final String oldText = typingTarget.getText();
-            final String newText = textArea.getText();
-            typingTarget.willChange();
-            if (newText.length() > 0) {
-                typingTarget.setText(newText);
-            } else {
-                typingTarget.setText("");
-            }
-            typingTarget.changed();
-            UndoableEdit edit = new AbstractUndoableEdit() {
-                private static final long serialVersionUID = 1L;
-
-                @Override
-                public String getPresentationName() {
-                    ResourceBundleUtil labels = ResourceBundleUtil.getBundle("org.jhotdraw.draw.Labels");
-                    return labels.getString("attribute.text.text");
-                }
-
-                @Override
-                public void undo() {
-                    super.undo();
-                    editedFigure.willChange();
-                    editedFigure.setText(oldText);
-                    editedFigure.changed();
-                }
-
-                @Override
-                public void redo() {
-                    super.redo();
-                    editedFigure.willChange();
-                    editedFigure.setText(newText);
-                    editedFigure.changed();
-                }
-            };
-            getDrawing().fireUndoableEditHappened(edit);
-            typingTarget.changed();
-            typingTarget = null;
-            textArea.endOverlay();
-        }
-        //         view().checkDamage();
-    }
-
-    @Override
-    public void actionPerformed(ActionEvent event) {
-        endEdit();
-        fireToolDone();
-    }
-
-    @Override
-    public void mouseDragged(MouseEvent e) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

@@ -10,6 +10,7 @@ package org.jhotdraw.draw.text;
 import org.jhotdraw.draw.figure.TextHolderFigure;
 import java.awt.*;
 import java.awt.geom.*;
+import java.awt.event.ActionListener;
 import javax.swing.BorderFactory;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -39,7 +40,7 @@ import org.jhotdraw.draw.event.FigureListener;
  * @author Werner Randelshofer
  * @version $Id: FloatingTextArea.java -1 $
  */
-public class FloatingTextArea {
+public class FloatingTextArea implements FloatingTextComponent {
 
     /**
      * A scroll pane to allow for vertical scrolling while editing
@@ -146,6 +147,25 @@ public class FloatingTextArea {
      */
     public Dimension getPreferredSize(int cols) {
         return new Dimension(textArea.getWidth(), textArea.getHeight());
+    }
+
+    /**
+     * Adds an action listener to the component.
+     * Note: FloatingTextArea does not trigger actions on Enter key.
+     *
+     * @param listener the action listener to add
+     */
+    @Override
+    public void addActionListener(ActionListener listener) {
+    }
+
+    /**
+     * Removes an action listener from the component.
+     *
+     * @param listener the action listener to remove
+     */
+    @Override
+    public void removeActionListener(ActionListener listener) {
     }
 
     /**

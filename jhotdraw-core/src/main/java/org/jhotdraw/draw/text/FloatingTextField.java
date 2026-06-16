@@ -43,7 +43,7 @@ import org.jhotdraw.draw.event.FigureListener;
  * @author Werner Randelshofer
  * @version $Id: FloatingTextField.java -1 $
  */
-public class FloatingTextField {
+public class FloatingTextField implements FloatingTextComponent {
 
     private TextHolderFigure editedFigure;
     private JTextField textField;
